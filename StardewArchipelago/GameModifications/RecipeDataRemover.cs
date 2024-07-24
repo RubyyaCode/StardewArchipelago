@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using StardewArchipelago.Archipelago;
+using StardewArchipelago.Constants.Modded;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -117,14 +118,24 @@ namespace StardewArchipelago.GameModifications
                 var recipeData = cookingRecipesData[recipeName];
                 var recipeUnlockCondition = GetCookingRecipeUnlockCondition(recipeData);
                 var unlockConditionParts = recipeUnlockCondition.Split(" ");
-                if (unlockConditionParts.Length < 3 || unlockConditionParts[0] != "s")
+                var isVanillaSkillUnlock = unlockConditionParts.Length >= 3 && unlockConditionParts[0] == "s";
+                var isBirbCoreSkillUnlock = IsBirbCoreSkillUnlock(unlockConditionParts);
+                if (isVanillaSkillUnlock || isBirbCoreSkillUnlock)
                 {
-                    continue;
+                    var modifiedRecipe = recipeData.Replace(recipeUnlockCondition, "none");
+                    cookingRecipesData[recipeName] = modifiedRecipe;
                 }
-
-                var modifiedRecipe = recipeData.Replace(recipeUnlockCondition, "none");
-                cookingRecipesData[recipeName] = modifiedRecipe;
             }
+        }
+
+        private static bool IsBirbCoreSkillUnlock(string[] unlockConditionParts)
+        {
+            var isBirbCoreSkillUnlock = unlockConditionParts.Length == 2 &&
+                                        ArchipelagoSkillIds.ModdedSkillIds.Any(x =>
+                                            unlockConditionParts[0].Equals($"{x}Skill", StringComparison.InvariantCultureIgnoreCase) ||
+                                            unlockConditionParts[0].Equals(x, StringComparison.InvariantCultureIgnoreCase)) &&
+                                        int.TryParse(unlockConditionParts[1], out _);
+            return isBirbCoreSkillUnlock;
         }
 
         private void RemoveCookingRecipesFriendshipLearnConditions(IDictionary<string, string> cookingRecipesData)

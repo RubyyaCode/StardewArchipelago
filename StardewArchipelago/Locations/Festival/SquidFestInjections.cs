@@ -33,13 +33,13 @@ namespace StardewArchipelago.Locations.Festival
                     return true; // run original logic
                 }
 
+                __result = true;
                 var monthNumber = (int)(Game1.stats.DaysPlayed / 28);
                 var lastRewardMailToday = $"GotSquidFestReward_{monthNumber}_{Game1.dayOfMonth}_3";
                 if (Game1.player.mailReceived.Contains(lastRewardMailToday))
                 {
-                    return true; // run original logic
+                    return false; // run original logic
                 }
-                __result = true;
 
                 var rewardsToGive = new List<string>();
                 var requiredSquidsToday = Game1.dayOfMonth != 12 ? new[] { 2, 5, 7, 10 } : new[] { 1, 3, 5, 8 };
@@ -65,7 +65,6 @@ namespace StardewArchipelago.Locations.Festival
                         if (_locationChecker.IsLocationMissing(apLocation))
                         {
                             _locationChecker.AddCheckedLocation(apLocation);
-                            continue;
                         }
                         rewardsToGive.Add($"{Game1.dayOfMonth}_{rewardIndex}");
                         continue;

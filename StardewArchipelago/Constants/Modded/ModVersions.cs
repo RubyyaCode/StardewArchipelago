@@ -4,13 +4,15 @@ namespace StardewArchipelago.Constants.Modded
 {
     public class ModVersions
     {
+        public const string WILDCARD = "x";
+
         public static readonly Dictionary<string, string> Versions = new()
         {
             { ModNames.ALEC, "2.2.1" },
             { ModNames.ALECTO, "1.1.10" },
             { ModNames.ARCHAEOLOGY, "2.10.3" },
             { ModNames.AYEISHA, "0.7.3-alpha" },
-            { ModNames.BIGGER_BACKPACK, "7.1.0" },
+            { ModNames.BIGGER_BACKPACK, "7.3.0" },
             { ModNames.BINNING, "2.0.5" },
             //{ ModNames.COOKING, "1.4.5" },
             //{ ModNames.DEEP_WOODS, "3.1.0-beta" },
@@ -28,7 +30,7 @@ namespace StardewArchipelago.Constants.Modded
             { ModNames.TRACTOR, "4.19.0" },
             //{ ModNames.WELLWICK, "1.0.0" },
             //{ ModNames.YOBA, "1.0.0" },
-            { ModNames.SVE, "1.14.44" },
+            { ModNames.SVE, $"1.14.{WILDCARD}" },
             { ModNames.DISTANT_LANDS, "2.0.8" },
             { ModNames.LACEY, "1.2.2" },
             //{ ModNames.BOARDING_HOUSE, "4.0.16" },
@@ -48,7 +50,7 @@ namespace StardewArchipelago.Constants.Modded
 
         public static readonly Dictionary<string, ContentPatcherRequirement> CPVersions = new()
         {
-            { ModNames.SVE, new ContentPatcherRequirement(ModNames.AP_SVE, "2.0.0") },
+            { ModNames.SVE, new ContentPatcherRequirement(ModNames.AP_SVE, "2.1.x") },
         };
     }
 }

@@ -133,7 +133,7 @@ namespace StardewArchipelago.Locations.CodeInjections.Vanilla.Walnutsanity
         {
             try
             {
-                if (__instance.crop == null || __instance.Location is not IslandLocation || !t.isScythe())
+                if (__instance?.crop == null || __instance.Location is not IslandLocation || t == null || !t.isScythe())
                 {
                     return true; // run original logic
                 }
@@ -405,6 +405,8 @@ namespace StardewArchipelago.Locations.CodeInjections.Vanilla.Walnutsanity
                 numberWalnutsSoFar = 0;
             }
 
+            AddPotentiallyMissedChecks(apLocationName, numberWalnutsSoFar);
+
             if (numberWalnutsSoFar < 5)
             {
                 if (roll > chanceRequired)
@@ -433,6 +435,18 @@ namespace StardewArchipelago.Locations.CodeInjections.Vanilla.Walnutsanity
 
             Game1.player.team.limitedNutDrops[walnutKey] = numberWalnutsSoFar + 1;
             return ItemRegistry.Create(QualifiedItemIds.GOLDEN_WALNUT);
+        }
+
+        private static void AddPotentiallyMissedChecks(string apLocationName, int numberWalnutsSoFar)
+        {
+            for (var i = 1; i <= numberWalnutsSoFar; i++)
+            {
+                var location = $"{apLocationName} {i}";
+                if (_locationChecker.IsLocationMissing(location))
+                {
+                    _locationChecker.AddCheckedLocation(location);
+                }
+            }
         }
 
         private static void CreateLocationDebris(string locationName, Vector2 pixelOrigin, GameLocation gameLocation, int direction = 0, int groundLevel = 0)

@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework;
 using StardewArchipelago.Archipelago;
 using StardewArchipelago.Constants;
+using StardewArchipelago.Stardew.Ids.Vanilla;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Events;
@@ -15,7 +16,6 @@ namespace StardewArchipelago.GameModifications.CodeInjections
         private const string MOVIE_THEATER_MAIL = "ccMovieTheater";
         private const string ABANDONED_JOJA_MART = "AbandonedJojaMart";
         private const string MOVIE_THEATER = "MovieTheater";
-        private const string CC_EVENT_ID = "191393";
         private static IMonitor _monitor;
         private static IModHelper _modHelper;
         private static ArchipelagoClient _archipelago;
@@ -160,10 +160,10 @@ namespace StardewArchipelago.GameModifications.CodeInjections
                 }
                 else
                 {
-                    hasSeenCCCeremonyCutscene = Utility.HasAnyPlayerSeenEvent(CC_EVENT_ID);
+                    hasSeenCCCeremonyCutscene = Utility.HasAnyPlayerSeenEvent(EventIds.COMMUNITY_CENTER_COMPLETE);
                     if (hasSeenCCCeremonyCutscene)
                     {
-                        Game1.player.eventsSeen.Remove(CC_EVENT_ID);
+                        Game1.player.eventsSeen.Remove(EventIds.COMMUNITY_CENTER_COMPLETE);
                     }
                 }
 
@@ -181,9 +181,9 @@ namespace StardewArchipelago.GameModifications.CodeInjections
         {
             try
             {
-                if (hasSeenCCCeremonyCutscene && !Game1.player­.eventsSeen.Contains(CC_EVENT_ID))
+                if (hasSeenCCCeremonyCutscene && !Game1.player­.eventsSeen.Contains(EventIds.COMMUNITY_CENTER_COMPLETE))
                 {
-                    Game1.player.eventsSeen.Add(CC_EVENT_ID);
+                    Game1.player.eventsSeen.Add(EventIds.COMMUNITY_CENTER_COMPLETE);
                 }
 
                 return;

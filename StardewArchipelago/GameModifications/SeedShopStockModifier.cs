@@ -195,7 +195,7 @@ namespace StardewArchipelago.GameModifications
                     Modification = QuantityModifier.ModificationType.Multiply,
                     Amount = JOJA_PRICE_MULTIPLIER,
                     RandomAmount = null,
-                }
+                },
             };
 
             var objectsData = DataLoader.Objects(Game1.content);
@@ -231,19 +231,14 @@ namespace StardewArchipelago.GameModifications
             {
                 shopData.Items.Remove(existingItem);
             }
-
-            var price = pricePerUnit;
-            if (pricePerUnit > 0 && stack > 0)
-            {
-                price = stack * pricePerUnit;
-            }
+            
             var item = new ShopItemData()
             {
                 Id = itemId,
                 ItemId = itemId,
                 MinStack = stack,
                 MaxStack = -1,
-                Price = price,
+                Price = pricePerUnit, // It gets multiplied by the stack size later
                 Condition = null,
             };
             shopData.Items.Add(item);

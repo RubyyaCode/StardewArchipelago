@@ -52,19 +52,19 @@ namespace StardewArchipelago.Locations.CodeInjections.Vanilla
                 }
 
                 // private TemporaryAnimatedSprite screen;
-                var screenField = _helper.Reflection.GetField<TemporaryAnimatedSprite>(__instance, "screen");
+                var screenField = _helper.Reflection.GetField<TemporaryAnimatedSprite>(__instance, "screen", false);
 
                 // private int currentChannel;
-                var currentChannelField = _helper.Reflection.GetField<int>(__instance, "currentChannel");
+                var currentChannelField = _helper.Reflection.GetField<int>(__instance, "currentChannel", false);
 
-                if (screenField.GetValue() == null || currentChannelField.GetValue() != 5)
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                if (screenField == null || currentChannelField == null || screenField.GetValue() == null || currentChannelField.GetValue() != 5)
                 {
                     return false; // don't run original logic
                 }
 
                 var cookingChannelData = DataLoader.Tv_CookingChannel(Game1.temporaryContent);
                 var recipeWeek = PickRecipeWeekToTeach(cookingChannelData);
-
 
                 var recipeInfo = cookingChannelData[recipeWeek.ToString()].Split('/');
                 var recipeName = recipeInfo[0];

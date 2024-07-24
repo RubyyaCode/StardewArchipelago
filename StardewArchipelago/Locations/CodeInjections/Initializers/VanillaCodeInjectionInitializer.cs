@@ -51,11 +51,12 @@ namespace StardewArchipelago.Locations.CodeInjections.Initializers
             QueenOfSauceInjections.Initialize(monitor, modHelper, archipelago, locationChecker, itemManager, qosManager);
             RecipeLevelUpInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
             RecipeFriendshipInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
-            CraftingInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
+            CraftingInjections.Initialize(monitor, modHelper, archipelago, itemManager, locationChecker);
             FarmCaveInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
             FarmEventInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
             BookInjections.Initialize(monitor, modHelper, archipelago, locationChecker, qosManager);
             InitializeWalnutsanityInjections(monitor, modHelper, archipelago, locationChecker);
+            EventInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
         }
 
         private static void InitializeBundleInjections(IMonitor monitor, IModHelper modHelper, ArchipelagoClient archipelago, ArchipelagoStateDto state, LocationChecker locationChecker, BundlesManager bundlesManager, BundleReader bundleReader)

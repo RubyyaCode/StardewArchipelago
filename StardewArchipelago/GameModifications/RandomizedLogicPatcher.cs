@@ -77,6 +77,8 @@ namespace StardewArchipelago.GameModifications
             ItemTooltipInjections.Initialize(monitor, modHelper, config, archipelago, locationChecker, nameSimplifier);
             BillboardInjections.Initialize(monitor, modHelper, config, archipelago, locationChecker, friends);
             SpecialOrderBoardInjections.Initialize(monitor, modHelper, archipelago, locationChecker);
+            CraftingPageInjections.Initialize(monitor, archipelago);
+            OutOfLogicInjections.Initialize(monitor, archipelago, stardewItemManager);
 
             DebugPatchInjections.Initialize(monitor, archipelago);
         }
@@ -111,16 +113,17 @@ namespace StardewArchipelago.GameModifications
             PatchTvChannels();
             PatchCleanupBeforeSave();
             PatchProfitMargin();
-            PatchVoidMayo();
             PatchKent();
             PatchGoldenEgg();
             PatchGoldenClock();
             PatchZeldaAnimations();
-            MakeLegendaryFishRecatchable();
+            MakeLegendaryFishAndVoidMayoRecatchable();
             PatchSecretNotes();
             PatchRecipes();
             PatchTooltips();
             PatchBundles();
+            PatchCraftingPage();
+            PatchMysteryBoxesAndPrizeTickets();
             _startingResources.GivePlayerStartingResources();
 
             PatchDebugMethods();
@@ -128,10 +131,9 @@ namespace StardewArchipelago.GameModifications
 
         public void CleanEvents()
         {
-            CleanLegendaryFishRecatchableEvent();
+            CleanLegendaryFishAndVoidMayoRecatchableEvent();
             UnpatchSeedShops();
             UnpatchJodiFishQuest();
-            UnpatchVoidMayo();
             CleanGoldenEggEvent();
         }
 
@@ -491,14 +493,14 @@ namespace StardewArchipelago.GameModifications
 
         private void PatchMixedSeeds()
         {
-            if (_archipelago.SlotData.Cropsanity == Cropsanity.Disabled)
+            if (_archipelago.SlotData.Cropsanity == Cropsanity.Disabled || !ModEntry.Instance.Config.StrictLogic)
             {
                 return;
             }
 
             _harmony.Patch(
                 original: AccessTools.Method(typeof(Crop), nameof(Crop.ResolveSeedId)),
-                prefix: new HarmonyMethod(typeof(CropInjections), nameof(CropInjections.ResolveSeedId_WildSeedsBecomesUnlockedCrop_Prefix))
+                prefix: new HarmonyMethod(typeof(CropInjections), nameof(CropInjections.ResolveSeedId_MixedSeedsBecomesUnlockedCrop_Prefix))
             );
         }
 
@@ -551,46 +553,6 @@ namespace StardewArchipelago.GameModifications
             );
         }
 
-        private void PatchVoidMayo()
-        {
-            _helper.Events.Content.AssetRequested += RemoveVoidMayoHenchmanCondition;
-        }
-
-        private void UnpatchVoidMayo()
-        {
-            _helper.Events.Content.AssetRequested -= RemoveVoidMayoHenchmanCondition;
-        }
-
-        private void RemoveVoidMayoHenchmanCondition(object sender, AssetRequestedEventArgs e)
-        {
-            if (!e.NameWithoutLocale.IsEquivalentTo("Data/Locations"))
-            {
-                return;
-            }
-
-            e.Edit(asset =>
-                {
-                    const string henchmanCondition = "!PLAYER_HAS_MAIL Host henchmanGone";
-                    var locationsData = asset.AsDictionary<string, LocationData>().Data;
-                    foreach (var (locationName, locationData) in locationsData)
-                    {
-                        foreach (var spawnFishData in locationData.Fish)
-                        {
-                            if (!spawnFishData.Condition.Contains(henchmanCondition, StringComparison.InvariantCultureIgnoreCase))
-                            {
-                                continue;
-                            }
-
-                            var parts = spawnFishData.Condition.Split(',').ToList();
-                            parts = parts.Where(x => !x.Contains(henchmanCondition, StringComparison.InvariantCultureIgnoreCase)).ToList();
-                            spawnFishData.Condition = string.Join(',', parts);
-                        }
-                    }
-                },
-                AssetEditPriority.Late
-            );
-        }
-
         private void PatchKent()
         {
             _harmony.Patch(
@@ -613,7 +575,7 @@ namespace StardewArchipelago.GameModifications
         {
             _harmony.Patch(
                 original: AccessTools.Method(typeof(Building), nameof(Building.doAction)),
-                postfix: new HarmonyMethod(typeof(GoldenClockInjections), nameof(GoldenClockInjections.DoAction_GoldenClockIncreaseTime_Postfix))
+                prefix: new HarmonyMethod(typeof(GoldenClockInjections), nameof(GoldenClockInjections.DoAction_GoldenClockIncreaseTime_Prefix))
             );
         }
 
@@ -638,12 +600,13 @@ namespace StardewArchipelago.GameModifications
             );
         }
 
-        private void MakeLegendaryFishRecatchable()
+        private void MakeLegendaryFishAndVoidMayoRecatchable()
         {
             _helper.Events.Content.AssetRequested += OnFishAssetRequested;
+            _helper.GameContent.InvalidateCache("Data/Locations");
         }
 
-        private void CleanLegendaryFishRecatchableEvent()
+        private void CleanLegendaryFishAndVoidMayoRecatchableEvent()
         {
             _helper.Events.Content.AssetRequested -= OnFishAssetRequested;
         }
@@ -657,10 +620,25 @@ namespace StardewArchipelago.GameModifications
 
             e.Edit(asset =>
                 {
+                    const string henchmanCondition = "!PLAYER_HAS_MAIL Host henchmanGone";
                     var locationsData = asset.AsDictionary<string, LocationData>().Data;
 
-                    foreach (var spawnFishData in locationsData.Values.SelectMany(p => p.Fish))
-                        spawnFishData.CatchLimit = -1;
+                    foreach (var (locationName, locationData) in locationsData)
+                    {
+                        foreach (var spawnFishData in locationData.Fish)
+                        {
+                            spawnFishData.CatchLimit = -1;
+
+                            if (spawnFishData.Condition == null || !spawnFishData.Condition.Contains(henchmanCondition, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            var parts = spawnFishData.Condition.Split(',').ToList();
+                            parts = parts.Where(x => !x.Contains(henchmanCondition, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                            spawnFishData.Condition = string.Join(',', parts);
+                        }
+                    }
                 },
                 AssetEditPriority.Late
             );
@@ -730,6 +708,37 @@ namespace StardewArchipelago.GameModifications
             _harmony.Patch(
                 original: AccessTools.Method(typeof(JunimoNoteMenu), "setUpBundleSpecificPage"),
                 transpiler: new HarmonyMethod(typeof(BundleMenuInjection), nameof(BundleMenuInjection.SkipObjectCheck))
+            );
+        }
+
+        private void PatchCraftingPage()
+        {
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(CraftingPage), nameof(CraftingPage.snapToDefaultClickableComponent)),
+                prefix: new HarmonyMethod(typeof(CraftingPageInjections), nameof(CraftingPageInjections.SnapToDefaultClickableComponent_DontCrashIfEmpty_Prefix))
+            );
+        }
+
+        private void PatchMysteryBoxesAndPrizeTickets()
+        {
+            if (!ModEntry.Instance.Config.StrictLogic)
+            {
+                return;
+            }
+
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(PrizeTicketMenu), nameof(PrizeTicketMenu.getPrizeItem)),
+                postfix: new HarmonyMethod(typeof(OutOfLogicInjections), nameof(OutOfLogicInjections.GetPrizeItem_SkipOutOfLogicPrizeTickets_Postfix))
+            );
+
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(Utility), nameof(Utility.getTreasureFromGeode)),
+                postfix: new HarmonyMethod(typeof(OutOfLogicInjections), nameof(OutOfLogicInjections.GetTreasureFromGeode_MysteryBoxesGiveReceivedItems_Postfix))
+            );
+
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(Utility), nameof(Utility.getRaccoonSeedForCurrentTimeOfYear)),
+                postfix: new HarmonyMethod(typeof(OutOfLogicInjections), nameof(OutOfLogicInjections.GetRaccoonSeedForCurrentTimeOfYear_MysteryBoxesGiveReceivedItems_Postfix))
             );
         }
 

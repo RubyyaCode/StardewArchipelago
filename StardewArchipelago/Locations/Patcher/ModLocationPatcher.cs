@@ -45,10 +45,9 @@ namespace StardewArchipelago.Locations.Patcher
             AddMagicModInjections();
             AddSkullCavernElevatorModInjections();
             AddSVEModInjections();
-            AddDistantLandsEventInjections();
             AddBoardingHouseInjections();
             PatchSVEShops();
-            
+
         }
 
         public void CleanEvents()
@@ -57,23 +56,6 @@ namespace StardewArchipelago.Locations.Patcher
             {
                 UnpatchSVEShops();
             }
-        }
-
-        private void AddDistantLandsEventInjections()
-        {
-            if (!_modsManager.HasMod(ModNames.DISTANT_LANDS))
-            {
-                return;
-            }
-
-            _harmony.Patch(
-                original: AccessTools.Method(typeof(Event), nameof(Event.skipEvent)),
-                prefix: new HarmonyMethod(typeof(ModdedEventInjections), nameof(ModdedEventInjections.SkipEvent_ReplaceRecipe_Prefix))
-            );
-            _harmony.Patch(
-                original: AccessTools.Method(typeof(Event), nameof(Event.tryEventCommand)),
-                prefix: new HarmonyMethod(typeof(ModdedEventInjections), nameof(ModdedEventInjections.TryEventCommand_CheckForStrayRecipe_Prefix))
-            );
         }
 
         private void AddModSkillInjections()
@@ -85,10 +67,13 @@ namespace StardewArchipelago.Locations.Patcher
 
             var _spaceCoreInterfaceType = AccessTools.TypeByName("SpaceCore.Interface.SkillLevelUpMenu");
             var spaceCoreSkillsType = AccessTools.TypeByName("SpaceCore.Skills");
-            _harmony.Patch(
-                original: AccessTools.Method(spaceCoreSkillsType, "AddExperience"),
-                prefix: new HarmonyMethod(typeof(SkillInjections), nameof(SkillInjections.AddExperience_ArchipelagoModExperience_Prefix))
-            );
+            if (_archipelago.SlotData.SkillProgression != SkillsProgression.Vanilla)
+            {
+                _harmony.Patch(
+                    original: AccessTools.Method(spaceCoreSkillsType, "AddExperience"),
+                    prefix: new HarmonyMethod(typeof(SkillInjections), nameof(SkillInjections.AddExperience_ArchipelagoModExperience_Prefix))
+                );
+            }
 
             if (_archipelago.SlotData.Mods.HasMod(ModNames.MAGIC))
             {
@@ -255,7 +240,10 @@ namespace StardewArchipelago.Locations.Patcher
 
         private void AddSVEModInjections()
         {
-            
+            if (!_archipelago.SlotData.Mods.HasMod(ModNames.SVE))
+            {
+                return;
+            }
 
             _harmony.Patch(
                 original: AccessTools.Method(typeof(Chest), nameof(Chest.checkForAction)),
@@ -263,7 +251,7 @@ namespace StardewArchipelago.Locations.Patcher
             );
 
             _harmony.Patch(
-                original: AccessTools.Method(typeof(Event), nameof(Event.endBehaviors), parameters: new []{typeof(string[]), typeof(GameLocation)}),
+                original: AccessTools.Method(typeof(Event), nameof(Event.endBehaviors), parameters: new[] { typeof(string[]), typeof(GameLocation) }),
                 prefix: new HarmonyMethod(typeof(SVECutsceneInjections), nameof(SVECutsceneInjections.EndBehaviors_AddSpecialOrderAfterEvent_Prefix))
             );
             var specialOrderAfterEventsType = AccessTools.TypeByName("AddSpecialOrdersAfterEvents");

@@ -18,6 +18,7 @@ using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewValley.Characters;
 using StardewValley.Locations;
+using StardewValley.Network.ChestHit;
 using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
 using StardewValley.Tools;
@@ -52,6 +53,7 @@ namespace StardewArchipelago.Items.Traps
         private const string UNGROWTH = "Benjamin Budton";
         private const string INFLATION = "Inflation";
         private const string BOMB = "Bomb";
+        private const string NUDGE = "Nudge";
 
         private static IMonitor _monitor;
         private readonly IModHelper _helper;
@@ -149,6 +151,7 @@ namespace StardewArchipelago.Items.Traps
             _traps.Add(UNGROWTH, UngrowCrops);
             _traps.Add(INFLATION, ActivateInflation);
             _traps.Add(BOMB, Explode);
+            _traps.Add(NUDGE, NudgePlayerItems);
 
             RegisterTrapsWithTrapSuffix();
             RegisterTrapsWithDifferentSpace();
@@ -487,7 +490,7 @@ namespace StardewArchipelago.Items.Traps
             var numberMonsters = _difficultyBalancer.NumberOfMonsters[_archipelago.SlotData.TrapItemsDifficulty];
             for (var i = 0; i < numberMonsters; i++)
             {
-                _monsterSpawner.SpawnOneMonster(Game1.player.currentLocation);
+                _monsterSpawner.SpawnOneMonster(Game1.player.currentLocation, _archipelago.SlotData.TrapItemsDifficulty);
             }
         }
 
@@ -705,6 +708,13 @@ namespace StardewArchipelago.Items.Traps
             var currentPhase = crop.currentPhase.Value;
             var daysPerPhase = crop.phaseDays.ToList();
 
+            if (crop.RegrowsAfterHarvest() && currentPhase >= daysPerPhase.Count - 1)
+            {
+                var daysSinceLastReady = Math.Max(0, crop.GetData().RegrowDays - dayOfCurrentPhase);
+                days = Math.Max(1, days - daysSinceLastReady);
+                dayOfCurrentPhase = 0;
+            }
+
             dayOfCurrentPhase -= days;
 
             while (dayOfCurrentPhase < 0)
@@ -734,6 +744,27 @@ namespace StardewArchipelago.Items.Traps
             // private Vector2 tilePosition;
             var tilePositionField = _helper.Reflection.GetField<Vector2>(crop, "tilePosition");
             crop.updateDrawMath(tilePositionField.GetValue());
+        }
+
+        private IEnumerable<FruitTree> GetAllFruitTrees()
+        {
+            foreach (var gameLocation in Game1.locations)
+            {
+                foreach (var terrainFeature in gameLocation.terrainFeatures.Values)
+                {
+                    if (terrainFeature is not FruitTree fruitTree)
+                    {
+                        continue;
+                    }
+
+                    yield return fruitTree;
+                }
+            }
+        }
+
+        private void UngrowFruitTree(FruitTree fruitTree, int days)
+        {
+            fruitTree.daysUntilMature.Value += days;
         }
 
         private void ActivateInflation()
@@ -834,25 +865,75 @@ namespace StardewArchipelago.Items.Traps
             location.netAudio.StartPlaying("fuse");
         }
 
-        private IEnumerable<FruitTree> GetAllFruitTrees()
+        private void NudgePlayerItems()
         {
-            foreach (var gameLocation in Game1.locations)
-            {
-                foreach (var terrainFeature in gameLocation.terrainFeatures.Values)
-                {
-                    if (terrainFeature is not FruitTree fruitTree)
-                    {
-                        continue;
-                    }
+            var baseNudgeChance = _difficultyBalancer.NudgeChance[_archipelago.SlotData.TrapItemsDifficulty];
+            var allLocations = Game1.locations.ToList();
+            allLocations.AddRange(Game1.getFarm().buildings.Where(building => building?.indoors.Value != null).Select(building => building.indoors.Value));
 
-                    yield return fruitTree;
-                }
+            NudgeObjectsEverywhere(allLocations, baseNudgeChance);
+            NudgeBuildings(baseNudgeChance);
+        }
+
+        private void NudgeObjectsEverywhere(List<GameLocation> allLocations, double baseNudgeChance)
+        {
+            foreach (var gameLocation in allLocations)
+            {
+                NudgeObjectsAtLocation(gameLocation, baseNudgeChance);
             }
         }
 
-        private void UngrowFruitTree(FruitTree fruitTree, int days)
+        private void NudgeObjectsAtLocation(GameLocation gameLocation, double baseNudgeChance)
         {
-            fruitTree.daysUntilMature.Value += days;
+            foreach (var gameObject in gameLocation.Objects.Values.ToArray())
+            {
+                if (gameObject is not Chest chest)
+                {
+                    continue;
+                }
+
+                NudgeChest(chest, baseNudgeChance);
+            }
+        }
+
+        private void NudgeChest(Chest chest, double baseNudgeChance)
+        {
+            var seed = (int)Game1.stats.DaysPlayed + (int)(chest.TileLocation.X * 77) + (int)(chest.TileLocation.Y * 1933);
+            var random = new Random(seed);
+            var chestNudgeChance = baseNudgeChance;
+            while (random.NextDouble() < chestNudgeChance)
+            {
+                chestNudgeChance /= 2;
+                var mutex = chest.GetMutex();
+
+                mutex.RequestLock(() =>
+                {
+                    chest.clearNulls();
+                    var chestTileBefore = chest.TileLocation;
+                    chest.TryMoveToSafePosition(random.Next(0, 4));
+
+                    // internal readonly ChestHitSynchronizer chestHit;
+                    var chestHitField = _helper.Reflection.GetField<ChestHitSynchronizer>(Game1.player.team, "chestHit");
+                    var chestHit = chestHitField.GetValue();
+
+                    chestHit.SignalMove(chest.Location, (int)chestTileBefore.X, (int)chestTileBefore.Y, (int)chest.TileLocation.X, (int)chest.TileLocation.Y);
+                    mutex.ReleaseLock();
+                });
+            }
+        }
+
+        private void NudgeBuildings(double baseNudgeChance)
+        {
+            if (_archipelago.SlotData.TrapItemsDifficulty < TrapItemsDifficulty.Hell)
+            {
+                return;
+            }
+
+            var buildingsNudgeChance = baseNudgeChance / 8;
+            foreach (var building in Game1.getFarm().buildings)
+            {
+                // TODO: Nudge buildings because I'm evil
+            }
         }
     }
 }

@@ -720,6 +720,11 @@ namespace StardewArchipelago.Locations.Patcher
             );
 
             _harmony.Patch(
+                original: AccessTools.Method(typeof(BeachNightMarket), nameof(DesertFestival.checkAction)),
+                prefix: new HarmonyMethod(typeof(TravelingMerchantInjections), nameof(TravelingMerchantInjections.DesertFestivalCheckAction_IsTravelingMerchantDay_Prefix))
+            );
+
+            _harmony.Patch(
                 original: AccessTools.Method(typeof(ShopMenu), nameof(ShopMenu.SetUpShopOwner)),
                 postfix: new HarmonyMethod(typeof(TravelingMerchantInjections), nameof(TravelingMerchantInjections.SetUpShopOwner_TravelingMerchantApFlair_Postfix))
             );
@@ -837,12 +842,19 @@ namespace StardewArchipelago.Locations.Patcher
             PatchIceFestival();
             PatchSquidFest();
             PatchNightMarket();
-            PatchFeastOfTheWinterStar();
+            PatchWinterStar();
         }
 
         private void CleanFestivalEvents()
         {
             _modHelper.Events.Content.AssetRequested -= _festivalShopStockModifier.OnShopStockRequested;
+
+            if (_archipelago.SlotData.FestivalLocations == FestivalLocations.Vanilla)
+            {
+                return;
+            }
+
+            CleanWinterStarEvents();
         }
 
         private void PatchEggFestival()
@@ -975,7 +987,7 @@ namespace StardewArchipelago.Locations.Patcher
             );
         }
 
-        private void PatchFeastOfTheWinterStar()
+        private void PatchWinterStar()
         {
             _harmony.Patch(
                 original: AccessTools.Method(typeof(Dialogue), nameof(Dialogue.chooseResponse)),
@@ -986,6 +998,13 @@ namespace StardewArchipelago.Locations.Patcher
                 original: AccessTools.Method(typeof(Event), nameof(Event.chooseSecretSantaGift)),
                 prefix: new HarmonyMethod(typeof(WinterStarInjections), nameof(WinterStarInjections.ChooseSecretSantaGift_SuccessfulGift_Prefix))
             );
+            _modHelper.Events.Content.AssetRequested += WinterStarInjections.OnFestivalsRequested;
+            _modHelper.GameContent.InvalidateCache("Data/Festivals");
+        }
+
+        private void CleanWinterStarEvents()
+        {
+            _modHelper.Events.Content.AssetRequested -= WinterStarInjections.OnFestivalsRequested;
         }
 
         private void AddCropSanityLocations()
@@ -1064,6 +1083,15 @@ namespace StardewArchipelago.Locations.Patcher
         {
             PatchChefsanity();
             PatchCraftsanity();
+
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(Event), nameof(Event.skipEvent)),
+                prefix: new HarmonyMethod(typeof(EventInjections), nameof(EventInjections.SkipEvent_ReplaceRecipe_Prefix))
+            );
+            _harmony.Patch(
+                original: AccessTools.Method(typeof(Event), nameof(Event.tryEventCommand)),
+                prefix: new HarmonyMethod(typeof(EventInjections), nameof(EventInjections.TryEventCommand_ReplaceRecipeWithCheck_Prefix))
+            );
         }
 
         private void PatchChefsanity()
@@ -1089,16 +1117,6 @@ namespace StardewArchipelago.Locations.Patcher
             {
                 return;
             }
-
-            _harmony.Patch(
-                original: AccessTools.Method(typeof(Event.DefaultCommands), nameof(Event.DefaultCommands.AddCookingRecipe)),
-                prefix: new HarmonyMethod(typeof(RecipeFriendshipInjections), nameof(RecipeFriendshipInjections.AddCookingRecipe_SkipLearningCookies_Prefix))
-            );
-
-            _harmony.Patch(
-                original: AccessTools.Method(typeof(Event), nameof(Event.skipEvent)),
-                prefix: new HarmonyMethod(typeof(RecipeFriendshipInjections), nameof(RecipeFriendshipInjections.SkipEvent_CookiesRecipe_Prefix))
-            );
         }
 
         private void CleanChefsanityEvents()
